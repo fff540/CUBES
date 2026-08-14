@@ -489,7 +489,280 @@ void NewProjectAudioProcessor::setStateInformation(
                     if (auto* block = trajectoryData.getBinaryData())
                         memoryBlockToPoints(
                             *block,
-                            trajectoryP…2665 tokens truncated…
+                            trajectoryPointCount,
+                            particle.trajectory);
+                    restoredParticles.push_back(particle);
+                }
+                else if (child.getType()
+                         == juce::Identifier("Stroke"))
+                {
+                    const int count =
+                        child.getProperty("points", 0);
+                    const auto storedPoints =
+                        child.getProperty("data");
+                    SavedStrokeState stroke;
+                    stroke.type = static_cast<WallType>(juce::jlimit(
+                        0,
+                        static_cast<int>(WallType::count) - 1,
+                        static_cast<int>(child.getProperty(
+                            "type",
+                            static_cast<int>(WallType::normal)))));
+
+                    if (auto* block = storedPoints.getBinaryData())
+                        if (memoryBlockToPoints(
+                                *block, count, stroke.points))
+                            restoredStrokes.push_back(
+                                std::move(stroke));
+                }
+            }
+        }
+
+        const juce::ScopedLock lock(savedStateLock);
+        isReady.store(false);
+        sampleBuffer.makeCopyOf(restoredAudio);
+
+        for (int i = 0; i < numSlices; ++i)
+        {
+            auto& slice = sliceData[static_cast<size_t>(i)];
+            const int totalSamples = sampleBuffer.getNumSamples();
+            for (int side = 0; side < numSliceSides; ++side)
+            {
+                const auto sideIndex =
+                    static_cast<size_t>(side);
+                const int restoredStart =
+                    restoredStarts[
+                        static_cast<size_t>(i)][sideIndex];
+                const int validStart = totalSamples > 0
+                    ? juce::jlimit(
+                        0, totalSamples - 1, restoredStart)
+                    : 0;
+                const int validLength = totalSamples > 0
+                    ? juce::jlimit(
+                        1,
+                        totalSamples - validStart,
+                        restoredLengths[
+                            static_cast<size_t>(i)][sideIndex])
+                    : 0;
+                slice.startSamples[sideIndex].store(validStart);
+                slice.numSamples[sideIndex].store(validLength);
+            }
+            slice.pitchSemitones.store(
+                restoredPitches[static_cast<size_t>(i)]);
+            slice.reversed.store(
+                restoredReverse[static_cast<size_t>(i)]);
+            slice.trigger.store(false);
+            slice.pendingStartSample.store(
+                slice.startSamples[0].load());
+            slice.pendingNumSamples.store(
+                slice.numSamples[0].load());
+            slice.pendingGain.store(1.0f);
+            slice.pendingPan.store(0.0f);
+            slice.spectralPlayhead = -1.0;
+            slice.ordinaryPlayhead = -1.0;
+            slice.spectralNoteOffTriggered = false;
+            slice.ordinaryNoteOffTriggered = false;
+            slice.activeStartSample =
+                slice.startSamples[0].load();
+            slice.activeNumSamples =
+                slice.numSamples[0].load();
+            slice.activeGain = 1.0f;
+            slice.activePan = 0.0f;
+            slice.activeReversed =
+                restoredReverse[static_cast<size_t>(i)];
+            slice.spectralLastOutput.fill(0.0f);
+            slice.ordinaryLastOutput.fill(0.0f);
+            slice.spectralTransitionStart.fill(0.0f);
+            slice.ordinaryTransitionStart.fill(0.0f);
+            slice.spectralTransitionRemaining = 0;
+            slice.ordinaryTransitionRemaining = 0;
+            spectralAdsrs[static_cast<size_t>(i)].reset();
+            ordinaryAdsrs[static_cast<size_t>(i)].reset();
+        }
+
+        savedParticles = std::move(restoredParticles);
+        savedStrokes = std::move(restoredStrokes);
+        hasSavedEditorState = restoredEditorState;
+        isReady.store(sampleBuffer.getNumChannels() > 0
+                      && sampleBuffer.getNumSamples() > 0);
+        pitchResampler.reset();
+        ordinaryPitchDelay.reset();
+        const bool ordinaryPitchMode =
+            apvts.getRawParameterValue("ordinary_pitch")->load()
+            >= 0.5f;
+        ordinaryModeBlend.setCurrentAndTargetValue(
+            ordinaryPitchMode ? 1.0f : 0.0f);
+        randMotionActive = false;
+        return;
+    }
+
+    std::unique_ptr<juce::XmlElement> xmlState(
+        getXmlFromBinary(data, sizeInBytes));
+    if (xmlState != nullptr
+        && xmlState->hasTagName(apvts.state.getType()))
+        apvts.replaceState(juce::ValueTree::fromXml(*xmlState));
+}
+
+void NewProjectAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
+{
+    currentSampleRate = sampleRate;
+    randMotionActive = false;
+    adsrParams.attack = apvts.getRawParameterValue("attack")->load();
+    adsrParams.decay = apvts.getRawParameterValue("decay")->load();
+    adsrParams.sustain = apvts.getRawParameterValue("sustain")->load();
+    adsrParams.release = apvts.getRawParameterValue("release")->load();
+
+    for (int i = 0; i < numSlices; ++i) {
+        spectralAdsrs[static_cast<size_t>(i)].setSampleRate(sampleRate);
+        spectralAdsrs[static_cast<size_t>(i)].setParameters(adsrParams);
+        ordinaryAdsrs[static_cast<size_t>(i)].setSampleRate(sampleRate);
+        ordinaryAdsrs[static_cast<size_t>(i)].setParameters(adsrParams);
+
+        auto& slice = sliceData[static_cast<size_t>(i)];
+        slice.spectralLastOutput.fill(0.0f);
+        slice.ordinaryLastOutput.fill(0.0f);
+        slice.spectralTransitionStart.fill(0.0f);
+        slice.ordinaryTransitionStart.fill(0.0f);
+        slice.spectralTransitionRemaining = 0;
+        slice.ordinaryTransitionRemaining = 0;
+    }
+    retriggerTransitionSamples = juce::jmax(
+        32, juce::roundToInt(sampleRate * 0.003));
+
+    const int preparedBlockSize = juce::jmax(1, samplesPerBlock);
+    spectralMixBuffer.setSize(2, preparedBlockSize);
+    ordinaryMixBuffer.setSize(2, preparedBlockSize);
+
+    juce::dsp::ProcessSpec delaySpec;
+    delaySpec.sampleRate = sampleRate;
+    delaySpec.maximumBlockSize =
+        static_cast<juce::uint32>(preparedBlockSize);
+    delaySpec.numChannels = 2;
+    ordinaryPitchDelay.prepare(delaySpec);
+    ordinaryPitchDelay.setDelay(
+        static_cast<float>(PitchResampler::latencySamples));
+    ordinaryPitchDelay.reset();
+
+    ordinaryModeBlend.reset(sampleRate, 0.035);
+    const bool ordinaryPitchMode =
+        apvts.getRawParameterValue("ordinary_pitch")->load() >= 0.5f;
+    ordinaryModeBlend.setCurrentAndTargetValue(
+        ordinaryPitchMode ? 1.0f : 0.0f);
+
+    // Инициализация Rolling Buffer (записываем максимум 60 секунд)
+    rollingCapacity = static_cast<int>(sampleRate * 60.0);
+    rollingBuffer.setSize(2, rollingCapacity);
+    rollingBuffer.clear();
+    rollingWritePos = 0;
+    rollingVisualSamples = 0;
+    pitchResampler.prepare(sampleRate);
+    setLatencySamples(PitchResampler::latencySamples);
+}
+
+void NewProjectAudioProcessor::loadAudioBuffer(const juce::AudioBuffer<float>& buffer)
+{
+    const juce::ScopedLock lock(savedStateLock);
+    isReady.store(false);
+    randMotionActive = false;
+
+    if (buffer.getNumChannels() <= 0 || buffer.getNumSamples() <= 0)
+    {
+        sampleBuffer.setSize(0, 0);
+        savedParticles.clear();
+        savedStrokes.clear();
+        hasSavedEditorState = false;
+        return;
+    }
+
+    sampleBuffer.makeCopyOf(buffer);
+    for (auto& s : sliceData) {
+        s.trigger.store(false);
+        s.pendingStartSample.store(0);
+        s.pendingNumSamples.store(0);
+        s.pendingGain.store(1.0f);
+        s.pendingPan.store(0.0f);
+        s.spectralPlayhead = -1.0;
+        s.ordinaryPlayhead = -1.0;
+        s.spectralNoteOffTriggered = false;
+        s.ordinaryNoteOffTriggered = false;
+        s.activeStartSample = 0;
+        s.activeNumSamples = 0;
+        s.activeGain = 1.0f;
+        s.activePan = 0.0f;
+        s.activeReversed = false;
+        s.spectralLastOutput.fill(0.0f);
+        s.ordinaryLastOutput.fill(0.0f);
+        s.spectralTransitionStart.fill(0.0f);
+        s.ordinaryTransitionStart.fill(0.0f);
+        s.spectralTransitionRemaining = 0;
+        s.ordinaryTransitionRemaining = 0;
+        for (int side = 0; side < numSliceSides; ++side)
+        {
+            s.startSamples[static_cast<size_t>(side)].store(0);
+            s.numSamples[static_cast<size_t>(side)].store(0);
+        }
+        s.pitchSemitones.store(0);
+        s.reversed.store(false);
+    }
+    for (auto& adsr : spectralAdsrs)
+        adsr.reset();
+    for (auto& adsr : ordinaryAdsrs)
+        adsr.reset();
+    pitchResampler.reset();
+    ordinaryPitchDelay.reset();
+    savedParticles.clear();
+    savedStrokes.clear();
+    hasSavedEditorState = false;
+    isReady.store(true);
+}
+
+bool NewProjectAudioProcessor::hasLoadedAudio() const noexcept
+{
+    const juce::ScopedLock lock(savedStateLock);
+    return isReady.load()
+        && sampleBuffer.getNumChannels() > 0
+        && sampleBuffer.getNumSamples() > 0;
+}
+
+void NewProjectAudioProcessor::copyLoadedAudioBuffer(
+    juce::AudioBuffer<float>& destination) const
+{
+    const juce::ScopedLock lock(savedStateLock);
+    if (sampleBuffer.getNumChannels() > 0
+        && sampleBuffer.getNumSamples() > 0)
+        destination.makeCopyOf(sampleBuffer);
+    else
+        destination.setSize(0, 0);
+}
+
+void NewProjectAudioProcessor::setSlice(int index, int startSample, int lengthInSamples)
+{
+    if (index >= 0 && index < numSlices)
+    {
+        const juce::ScopedLock lock(savedStateLock);
+        const int totalSamples = sampleBuffer.getNumSamples();
+        if (totalSamples <= 0)
+            return;
+
+        const int validStart =
+            juce::jlimit(0, totalSamples - 1, startSample);
+        const int validLength = juce::jlimit(
+            1, totalSamples - validStart, lengthInSamples);
+        for (int side = 0; side < numSliceSides; ++side)
+        {
+            sliceData[index]
+                .startSamples[static_cast<size_t>(side)]
+                .store(validStart);
+            sliceData[index]
+                .numSamples[static_cast<size_t>(side)]
+                .store(validLength);
+        }
+    }
+}
+
+void NewProjectAudioProcessor::setSliceForSide(
+    int index,
+    int side,
+    int startSample,
     int lengthInSamples)
 {
     if (index < 0 || index >= numSlices
@@ -1023,4 +1296,3 @@ void NewProjectAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, ju
 bool NewProjectAudioProcessor::hasEditor() const { return true; }
 juce::AudioProcessorEditor* NewProjectAudioProcessor::createEditor() { return new NewProjectAudioProcessorEditor(*this); }
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter() { return new NewProjectAudioProcessor(); }
-

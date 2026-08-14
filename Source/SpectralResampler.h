@@ -37,4 +37,3 @@ private:
     ChannelBinBuffers synthesisPhase {};
     std::array<bool, maximumChannels> phaseInitialised {};
 };
-

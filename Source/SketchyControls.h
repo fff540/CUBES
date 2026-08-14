@@ -49,4 +49,3 @@ public:
                           float sliderPos, float rotaryStartAngle,
                           float rotaryEndAngle, juce::Slider&) override;
 };
-

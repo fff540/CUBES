@@ -155,4 +155,3 @@ void PitchResampler::processSpectralFrame(int numberOfChannels,
                      static_cast<size_t>(hopSize) * sizeof(float));
     }
 }
-

@@ -82,4 +82,3 @@ jobs:
           path: ${{ runner.temp }}/CUBES-macOS-11+-universal-AU-VST3.zip
           archive: false
           retention-days: 30
-

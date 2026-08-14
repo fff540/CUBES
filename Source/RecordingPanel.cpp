@@ -442,13 +442,12 @@ void RecordingPanelView::startPreparedDrag()
 
     dragRequested = false;
     if (started)
-        preparedExportFile = {};
+        preparedExportFile = juce::File {};
 }
 
 void RecordingPanelView::clearPreparedExport()
 {
     if (preparedExportFile.existsAsFile())
         preparedExportFile.deleteFile();
-    preparedExportFile = {};
+    preparedExportFile = juce::File {};
 }
-

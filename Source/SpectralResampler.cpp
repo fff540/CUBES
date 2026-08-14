@@ -181,4 +181,3 @@ void SpectralResampler::process(float* spectrum,
               scratchSpectrum.begin() + fftLength * 2,
               spectrum);
 }
-

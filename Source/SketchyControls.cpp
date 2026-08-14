@@ -528,4 +528,3 @@ void SketchyLookAndFeel::drawRotarySlider(juce::Graphics& graphics,
     drawHandDrawnLine(graphics, centre, indicator,
                       slider.getName().hashCode() + random.nextInt(), pencilColour);
 }
-

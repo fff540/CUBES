@@ -548,7 +548,1192 @@ void NewProjectAudioProcessorEditor::paint(juce::Graphics& g)
 
             const auto colour = getWallTypeColour(stroke.type);
             g.setColour(colour.withAlpha(0.86f));
-            g.strokePath…10357 tokens truncated…r.uiWallBrush = nextIndex;
+            g.strokePath(
+                path,
+                juce::PathStrokeType(
+                    thickness,
+                    juce::PathStrokeType::curved,
+                    juce::PathStrokeType::rounded));
+
+            if (stroke.type == WallType::teleport)
+            {
+                g.setColour(colour.withAlpha(0.72f));
+                g.drawEllipse(
+                    juce::Rectangle<float>(8.0f, 8.0f)
+                        .withCentre(stroke.points.front()),
+                    1.1f);
+                g.drawEllipse(
+                    juce::Rectangle<float>(8.0f, 8.0f)
+                        .withCentre(stroke.points.back()),
+                    1.1f);
+            }
+        };
+
+        for (const auto& stroke : strokes)
+            drawDrawnStroke(stroke);
+        if (isDrawing)
+            drawDrawnStroke(currentStroke);
+
+        auto drawTrajectory =
+            [&](const std::vector<juce::Point<float>>& trajectory,
+                juce::Colour colour,
+                int seed)
+            {
+                if (trajectory.size() < 2)
+                    return;
+
+                juce::Path path;
+                for (size_t i = 0; i + 1 < trajectory.size(); ++i)
+                    addSketchyLine(
+                        path,
+                        trajectory[i].x,
+                        trajectory[i].y,
+                        trajectory[i + 1].x,
+                        trajectory[i + 1].y,
+                        seed + static_cast<int>(i));
+
+                g.setColour(colour.withAlpha(0.34f));
+                g.strokePath(
+                    path,
+                    juce::PathStrokeType(
+                        1.05f,
+                        juce::PathStrokeType::curved,
+                        juce::PathStrokeType::rounded));
+            };
+
+        for (int i = 0; i < static_cast<int>(particles.size()); ++i)
+        {
+            const auto& particle = particles[static_cast<size_t>(i)];
+            drawTrajectory(
+                particle.trajectory,
+                particle.color,
+                31000 + i * 503 + seedOffset);
+        }
+        if (isDrawingTrajectory)
+            drawTrajectory(
+                currentTrajectory,
+                pencilColor,
+                39000 + seedOffset);
+
+        for (int i = 0; i < particles.size(); ++i) {
+            const auto& p = particles[i];
+            g.setColour(p.color.withAlpha(0.25f));
+            g.fillRoundedRectangle(p.x, p.y, p.size, p.size, 2.0f);
+
+            juce::Path rectPath;
+            int animSeed = (i * 1000) + seedOffset;
+            addSketchyLine(rectPath, p.x, p.y, p.x + p.size, p.y, animSeed + 1);
+            addSketchyLine(rectPath, p.x + p.size, p.y, p.x + p.size, p.y + p.size, animSeed + 2);
+            addSketchyLine(rectPath, p.x + p.size, p.y + p.size, p.x, p.y + p.size, animSeed + 3);
+            addSketchyLine(rectPath, p.x, p.y + p.size, p.x, p.y, animSeed + 4);
+
+            g.setColour(pencilColor.withAlpha(0.85f));
+            g.strokePath(rectPath, juce::PathStrokeType(1.4f, juce::PathStrokeType::mitered, juce::PathStrokeType::rounded));
+            drawSketchyPitchValue(g, p, i, frameCount);
+            drawSketchyReverseSymbol(g, p, i, frameCount);
+        }
+
+        drawFragmentEditor(g);
+
+        if (audioProcessor.uiSettingsOpen)
+        {
+            juce::Rectangle<float> panel(
+                getWidth() - 225.0f, 55.0f, 210.0f, 265.0f);
+            g.setColour(juce::Colour(0xFFF3EFE9).withAlpha(0.97f));
+            g.fillRoundedRectangle(panel, 4.0f);
+
+            juce::Path border;
+            border.addRoundedRectangle(panel, 4.0f);
+            juce::Path sketchyBorder;
+            juce::PathFlatteningIterator it(border, juce::AffineTransform(), 2.0f);
+            juce::Random r(888 + seedOffset);
+            float s = 1.0f;
+            bool isFirst = true;
+            while (it.next()) {
+                float nx = it.x2 + (r.nextFloat() * s * 2 - s); float ny = it.y2 + (r.nextFloat() * s * 2 - s);
+                if (isFirst) { sketchyBorder.startNewSubPath(nx, ny); isFirst = false; }
+                else { sketchyBorder.lineTo(nx, ny); }
+            }
+            g.setColour(pencilColor.withAlpha(0.6f));
+            g.strokePath(sketchyBorder, juce::PathStrokeType(1.5f));
+
+            juce::Path separators;
+            addSketchyLine(separators, panel.getX() + 12.0f, 112.0f,
+                           panel.getRight() - 12.0f, 112.0f, 1201 + seedOffset);
+            addSketchyLine(separators, panel.getX() + 12.0f, 178.0f,
+                           panel.getRight() - 12.0f, 178.0f, 1202 + seedOffset);
+            addSketchyLine(separators, panel.getX() + 12.0f, 242.0f,
+                           panel.getRight() - 12.0f, 242.0f, 1203 + seedOffset);
+            g.setColour(pencilColor.withAlpha(0.65f));
+            g.strokePath(separators, juce::PathStrokeType(1.2f,
+                juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+
+            g.setColour(juce::Colours::black);
+            g.setFont(10.0f);
+            g.drawText("A", attackSlider.getX(), attackSlider.getBottom() - 2,
+                       attackSlider.getWidth(), 12, juce::Justification::centred, false);
+            g.drawText("D", decaySlider.getX(), decaySlider.getBottom() - 2,
+                       decaySlider.getWidth(), 12, juce::Justification::centred, false);
+            g.drawText("S", sustainSlider.getX(), sustainSlider.getBottom() - 2,
+                       sustainSlider.getWidth(), 12, juce::Justification::centred, false);
+            g.drawText("R", releaseSlider.getX(), releaseSlider.getBottom() - 2,
+                       releaseSlider.getWidth(), 12, juce::Justification::centred, false);
+
+            g.setFont(12.0f);
+            g.drawText(juce::String(static_cast<int>(numParticlesSlider.getValue())),
+                       numParticlesSlider.getX(), numParticlesSlider.getBottom() - 1,
+                       numParticlesSlider.getWidth(), 17,
+                       juce::Justification::centred, false);
+            const bool ordinaryPitchMode =
+                audioProcessor.apvts
+                    .getRawParameterValue("ordinary_pitch")->load() >= 0.5f;
+            g.setFont(9.5f);
+            g.drawText(ordinaryPitchMode ? "pitch" : "resample",
+                       pitchSlider.getX(), pitchSlider.getBottom() - 1,
+                       pitchSlider.getWidth(), 17,
+                       juce::Justification::centred, false);
+            g.drawText("rand",
+                       randSlider.getX(), randSlider.getBottom() - 1,
+                       randSlider.getWidth(), 17,
+                       juce::Justification::centred, false);
+            g.drawText("humanize",
+                       humanizeSlider.getX(),
+                       humanizeSlider.getBottom() - 1,
+                       humanizeSlider.getWidth(), 17,
+                       juce::Justification::centred, false);
+        }
+
+        if (juce::Time::currentTimeMillis() < wallBrushHintUntil)
+        {
+            const juce::Rectangle<float> hint(
+                juce::jlimit(
+                    12.0f,
+                    juce::jmax(12.0f, getWidth() - 142.0f),
+                    wallBrushHintPosition.x - 61.0f),
+                juce::jlimit(
+                    12.0f,
+                    juce::jmax(12.0f, getHeight() - 42.0f),
+                    wallBrushHintPosition.y - 36.0f),
+                122.0f,
+                28.0f);
+            g.setColour(juce::Colour(0xff232529));
+            g.setFont(juce::FontOptions(
+                "Segoe Print", 16.0f, juce::Font::plain));
+            g.drawText(
+                getWallTypeName(currentWallType),
+                hint,
+                juce::Justification::centred,
+                false);
+        }
+    }
+}
+
+void NewProjectAudioProcessorEditor::resized()
+{
+    gearButton.setBounds(getWidth() - 45, 15, 30, 30);
+    const int panelX = getWidth() - 225;
+    timeStopButton.setBounds(panelX + 67, 68, 30, 30);
+    clearLinesButton.setBounds(panelX + 113, 68, 30, 30);
+    collisionButton.setBounds(panelX + 10, 118, 190, 54);
+
+    constexpr int adsrSize = 36; // Меняй это значение
+    constexpr int adsrCentreY = 206;
+
+    attackSlider.setBounds(
+        panelX + 37 - adsrSize / 2,
+        adsrCentreY - adsrSize / 2,
+        adsrSize,
+        adsrSize);
+
+    decaySlider.setBounds(
+        panelX + 81 - adsrSize / 2,
+        adsrCentreY - adsrSize / 2,
+        adsrSize,
+        adsrSize);
+
+    sustainSlider.setBounds(
+        panelX + 125 - adsrSize / 2,
+        adsrCentreY - adsrSize / 2,
+        adsrSize,
+        adsrSize);
+
+    releaseSlider.setBounds(
+        panelX + 169 - adsrSize / 2,
+        adsrCentreY - adsrSize / 2,
+        adsrSize,
+        adsrSize);
+    numParticlesSlider.setBounds(panelX + 10, 254, 42, 42);
+    pitchSlider.setBounds(panelX + 59, 254, 42, 42);
+    randSlider.setBounds(panelX + 108, 254, 42, 42);
+    humanizeSlider.setBounds(panelX + 158, 254, 42, 42);
+
+    // Позиционирование toggleRecordingPanelButton теперь полностью управляется в timerCallback
+}
+
+void NewProjectAudioProcessorEditor::updateSettingsVisibility()
+{
+    const bool shouldBeVisible = isAnimating && audioProcessor.uiSettingsOpen;
+    timeStopButton.setVisible(shouldBeVisible);
+    clearLinesButton.setVisible(shouldBeVisible);
+    collisionButton.setVisible(shouldBeVisible);
+    attackSlider.setVisible(shouldBeVisible);
+    decaySlider.setVisible(shouldBeVisible);
+    sustainSlider.setVisible(shouldBeVisible);
+    releaseSlider.setVisible(shouldBeVisible);
+    numParticlesSlider.setVisible(shouldBeVisible);
+    pitchSlider.setVisible(shouldBeVisible);
+    randSlider.setVisible(shouldBeVisible);
+    humanizeSlider.setVisible(shouldBeVisible);
+}
+
+bool NewProjectAudioProcessorEditor::isInterestedInFileDrag(const juce::StringArray& files)
+{
+    for (auto file : files) if (file.endsWithIgnoreCase(".wav")) return true;
+    return false;
+}
+
+void NewProjectAudioProcessorEditor::filesDropped(const juce::StringArray& files, int x, int y)
+{
+    juce::File wavFile;
+    for (const auto& path : files)
+    {
+        if (path.endsWithIgnoreCase(".wav"))
+        {
+            wavFile = juce::File(path);
+            break;
+        }
+    }
+
+    if (!wavFile.existsAsFile())
+        return;
+
+    std::unique_ptr<juce::AudioFormatReader> reader(
+        formatManager.createReaderFor(wavFile));
+    if (reader == nullptr
+        || reader->numChannels == 0
+        || reader->numChannels
+               > static_cast<unsigned int>(
+                   std::numeric_limits<int>::max())
+        || reader->lengthInSamples <= 0
+        || reader->lengthInSamples
+               > static_cast<juce::int64>(
+                   std::numeric_limits<int>::max()))
+        return;
+
+    const int channels = static_cast<int>(reader->numChannels);
+    const int samples = static_cast<int>(reader->lengthInSamples);
+    loadedAudio.setSize(channels, samples);
+
+    if (!reader->read(
+            &loadedAudio, 0, samples, 0, true, true))
+    {
+        loadedAudio.setSize(0, 0);
+        return;
+    }
+
+    audioProcessor.loadAudioBuffer(loadedAudio);
+    generateParticles();
+    isAnimating = true;
+
+        toggleRecordingPanelButton.setVisible(true); // Показываем стрелочку после загрузки проекта
+    gearButton.setVisible(true);
+    updateSettingsVisibility();
+    repaint();
+}
+
+void NewProjectAudioProcessorEditor::selectParticle(int particleIndex)
+{
+    if (selectedParticleIndex != particleIndex)
+        activeFragmentSide = 0;
+    selectedParticleIndex = particleIndex;
+    fragmentDragMode = FragmentDragMode::none;
+
+    if (!juce::isPositiveAndBelow(
+            selectedParticleIndex,
+            static_cast<int>(particles.size())))
+    {
+        selectedParticleIndex = -1;
+        fragmentEditorBounds = {};
+        return;
+    }
+
+    const auto& particle =
+        particles[static_cast<size_t>(selectedParticleIndex)];
+    constexpr float editorWidth = 276.0f;
+    constexpr float editorHeight = 112.0f;
+    constexpr float margin = 14.0f;
+
+    float editorX = particle.x + particle.size * 0.5f
+                    - editorWidth * 0.5f;
+    float editorY = particle.y + particle.size + 10.0f;
+    if (editorY + editorHeight > getHeight() - margin)
+        editorY = particle.y - editorHeight - 10.0f;
+
+    editorX = juce::jlimit(
+        margin,
+        juce::jmax(margin, getWidth() - margin - editorWidth),
+        editorX);
+    editorY = juce::jlimit(
+        margin,
+        juce::jmax(margin, getHeight() - margin - editorHeight),
+        editorY);
+    fragmentEditorBounds = {
+        editorX, editorY, editorWidth, editorHeight
+    };
+}
+
+juce::Rectangle<float>
+NewProjectAudioProcessorEditor::getFragmentEditorBounds() const
+{
+    if (!juce::isPositiveAndBelow(
+            selectedParticleIndex,
+            static_cast<int>(particles.size()))
+        || loadedAudio.getNumSamples() <= 0)
+        return {};
+
+    return fragmentEditorBounds;
+}
+
+juce::Rectangle<float>
+NewProjectAudioProcessorEditor::getFragmentWaveformBounds() const
+{
+    auto bounds = getFragmentEditorBounds();
+    if (bounds.isEmpty())
+        return {};
+
+    bounds.removeFromTop(27.0f);
+    bounds.removeFromBottom(25.0f);
+    return bounds.reduced(10.0f, 4.0f);
+}
+
+juce::Rectangle<float>
+NewProjectAudioProcessorEditor::getTrajectoryButtonBounds() const
+{
+    const auto panel = getFragmentEditorBounds();
+    if (panel.isEmpty())
+        return {};
+
+    return {
+        panel.getRight() - 51.0f,
+        panel.getY() + 4.0f,
+        41.0f,
+        22.0f
+    };
+}
+
+void NewProjectAudioProcessorEditor::drawFragmentEditor(
+    juce::Graphics& graphics)
+{
+    juce::Graphics::ScopedSaveState savedGraphicsState(graphics);
+    const auto panel = getFragmentEditorBounds();
+    const auto waveform = getFragmentWaveformBounds();
+    if (panel.isEmpty() || waveform.isEmpty())
+        return;
+
+    std::array<int, NewProjectAudioProcessor::numSliceSides>
+        fragmentStarts{};
+    std::array<int, NewProjectAudioProcessor::numSliceSides>
+        fragmentLengths{};
+    const int sliceIndex =
+        particles[static_cast<size_t>(selectedParticleIndex)].sliceIndex;
+    if (!audioProcessor.getSliceRanges(
+            sliceIndex, fragmentStarts, fragmentLengths))
+        return;
+
+    const int totalSamples = loadedAudio.getNumSamples();
+    if (totalSamples <= 0)
+        return;
+    activeFragmentSide = juce::jlimit(
+        0,
+        NewProjectAudioProcessor::numSliceSides - 1,
+        activeFragmentSide);
+    const int fragmentStart =
+        fragmentStarts[static_cast<size_t>(activeFragmentSide)];
+    const int fragmentLength =
+        fragmentLengths[static_cast<size_t>(activeFragmentSide)];
+
+    const juce::Colour pencil(0xff232529);
+    graphics.setColour(juce::Colour(0xfff3efe9).withAlpha(0.97f));
+    graphics.fillRoundedRectangle(panel, 4.0f);
+
+    juce::Random borderRandom(
+        24000 + selectedParticleIndex * 101 + frameCount / 10);
+    for (int pass = 0; pass < 2; ++pass)
+    {
+        const float offsetX =
+            borderRandom.nextFloat() * 1.0f - 0.5f;
+        const float offsetY =
+            borderRandom.nextFloat() * 1.0f - 0.5f;
+        graphics.setColour(
+            pencil.withAlpha(pass == 0 ? 0.64f : 0.24f));
+        graphics.drawRoundedRectangle(
+            panel.translated(offsetX, offsetY),
+            4.0f,
+            pass == 0 ? 1.25f : 0.8f);
+    }
+
+    const auto trajectoryButton = getTrajectoryButtonBounds();
+    const bool trajectoryButtonActive =
+        isTrajectoryArmed
+        && trajectoryTargetParticleIndex == selectedParticleIndex;
+    if (trajectoryButtonActive)
+    {
+        graphics.setColour(
+            particles[static_cast<size_t>(selectedParticleIndex)]
+                .color.withAlpha(0.18f));
+        graphics.fillRoundedRectangle(trajectoryButton, 4.0f);
+    }
+
+    juce::Path trajectoryIcon;
+    const auto iconBounds = trajectoryButton.reduced(8.0f, 6.0f);
+
+    const float iconX = iconBounds.getX();
+    const float iconY = iconBounds.getY();
+    const float iconW = iconBounds.getWidth();
+    const float iconH = iconBounds.getHeight();
+    trajectoryIcon.startNewSubPath(
+        iconX,
+        iconY + iconH * 0.72f);
+    trajectoryIcon.cubicTo(
+        iconX + iconW * 0.14f,
+        iconY + iconH * 0.16f,
+        iconX + iconW * 0.34f,
+        iconY + iconH * 0.12f,
+        iconX + iconW * 0.46f,
+        iconY + iconH * 0.49f);
+    trajectoryIcon.cubicTo(
+        iconX + iconW * 0.58f,
+        iconY + iconH * 0.91f,
+        iconX + iconW * 0.76f,
+        iconY + iconH * 0.91f,
+        iconX + iconW * 0.88f,
+        iconY + iconH * 0.51f);
+    trajectoryIcon.lineTo(
+        iconX + iconW * 0.98f,
+        iconY + iconH * 0.18f);
+    const juce::Point<float> arrowTip(
+        iconX + iconW * 0.98f,
+        iconY + iconH * 0.18f);
+
+    const float arrowHeadLength = iconW * 0.26f;
+
+    trajectoryIcon.startNewSubPath(
+        arrowTip.x - arrowHeadLength,
+        arrowTip.y);
+
+    trajectoryIcon.lineTo(arrowTip);
+
+    trajectoryIcon.lineTo(
+        arrowTip.x,
+        arrowTip.y + arrowHeadLength);
+    graphics.setColour(pencil.withAlpha(
+        trajectoryButtonActive ? 0.94f : 0.76f));
+    graphics.strokePath(
+        trajectoryIcon,
+        juce::PathStrokeType(
+            1.55f,
+            juce::PathStrokeType::curved,
+            juce::PathStrokeType::rounded));
+
+    const double sampleRate =
+        juce::jmax(1.0, audioProcessor.currentSampleRate);
+    const auto startText = juce::String(
+        static_cast<double>(fragmentStart) / sampleRate, 3);
+    const auto lengthText = juce::String(
+        static_cast<double>(fragmentLength) / sampleRate, 3);
+    graphics.setColour(pencil.withAlpha(0.76f));
+    graphics.setFont(juce::FontOptions(
+        "Segoe Print", 14.0f, juce::Font::plain));
+    graphics.drawText(
+        "start " + startText + "s   length " + lengthText + "s",
+        panel.reduced(10.0f, 3.0f).removeFromTop(23.0f),
+        juce::Justification::centredLeft,
+        false);
+
+    juce::Path waveformPath;
+    const int pixelCount =
+        juce::jmax(1, juce::roundToInt(waveform.getWidth()));
+    const int numChannels = loadedAudio.getNumChannels();
+    const float centreY = waveform.getCentreY();
+    const float amplitude = waveform.getHeight() * 0.43f;
+
+    for (int pixel = 0; pixel < pixelCount; ++pixel)
+    {
+        const int rangeStart = juce::jlimit(
+            0,
+            totalSamples - 1,
+            static_cast<int>(
+                static_cast<double>(pixel)
+                / static_cast<double>(pixelCount)
+                * totalSamples));
+        const int rangeEnd = juce::jlimit(
+            rangeStart + 1,
+            totalSamples,
+            static_cast<int>(
+                static_cast<double>(pixel + 1)
+                / static_cast<double>(pixelCount)
+                * totalSamples));
+        const int step = juce::jmax(1, (rangeEnd - rangeStart) / 8);
+        float minimum = 0.0f;
+        float maximum = 0.0f;
+
+        for (int sample = rangeStart;
+             sample < rangeEnd;
+             sample += step)
+        {
+            for (int channel = 0; channel < numChannels; ++channel)
+            {
+                const float value =
+                    loadedAudio.getSample(channel, sample);
+                minimum = juce::jmin(minimum, value);
+                maximum = juce::jmax(maximum, value);
+            }
+        }
+
+        const float x = waveform.getX()
+                        + static_cast<float>(pixel);
+        waveformPath.startNewSubPath(
+            x, centreY - maximum * amplitude);
+        waveformPath.lineTo(
+            x, centreY - minimum * amplitude);
+    }
+
+    graphics.setColour(pencil.withAlpha(0.48f));
+    graphics.strokePath(
+        waveformPath,
+        juce::PathStrokeType(
+            0.8f,
+            juce::PathStrokeType::curved,
+            juce::PathStrokeType::rounded));
+
+    const auto selectionColour =
+        particles[static_cast<size_t>(selectedParticleIndex)].color;
+    for (int drawPass = 0;
+         drawPass < NewProjectAudioProcessor::numSliceSides;
+         ++drawPass)
+    {
+        const int side = drawPass
+            == NewProjectAudioProcessor::numSliceSides - 1
+            ? activeFragmentSide
+            : (drawPass < activeFragmentSide
+                   ? drawPass
+                   : drawPass + 1);
+        const auto sideIndex = static_cast<size_t>(side);
+        const float startRatio =
+            static_cast<float>(fragmentStarts[sideIndex])
+            / static_cast<float>(totalSamples);
+        const float endRatio =
+            static_cast<float>(juce::jmin(
+                totalSamples,
+                fragmentStarts[sideIndex]
+                    + fragmentLengths[sideIndex]))
+            / static_cast<float>(totalSamples);
+        const float selectionStart =
+            waveform.getX() + waveform.getWidth() * startRatio;
+        const float selectionEnd =
+            waveform.getX() + waveform.getWidth() * endRatio;
+        const juce::Rectangle<float> selection(
+            selectionStart,
+            waveform.getY(),
+            juce::jmax(1.0f, selectionEnd - selectionStart),
+            waveform.getHeight());
+        const bool isActive = side == activeFragmentSide;
+
+        graphics.setColour(selectionColour.withAlpha(
+            isActive ? 0.24f : 0.11f));
+        graphics.fillRect(selection);
+        graphics.setColour(pencil.withAlpha(
+            isActive ? 0.82f : 0.45f));
+        graphics.drawVerticalLine(
+            juce::roundToInt(selectionStart),
+            waveform.getY() - 2.0f,
+            waveform.getBottom() + 2.0f);
+        graphics.drawVerticalLine(
+            juce::roundToInt(selectionEnd),
+            waveform.getY() - 2.0f,
+            waveform.getBottom() + 2.0f);
+
+        drawSketchyDirectionArrow(
+            graphics,
+            {
+                juce::jlimit(
+                    panel.getX() + 12.0f,
+                    panel.getRight() - 12.0f,
+                    selection.getCentreX()),
+                waveform.getBottom() + 13.0f
+            },
+            side,
+            27000 + selectedParticleIndex * 113
+                + side * 31 + frameCount / 10);
+    }
+}
+
+bool NewProjectAudioProcessorEditor::beginFragmentDrag(
+    juce::Point<float> position)
+{
+    const auto panel = getFragmentEditorBounds();
+    if (!panel.contains(position))
+        return false;
+
+    fragmentDragMode = FragmentDragMode::none;
+    if (getTrajectoryButtonBounds().contains(position))
+    {
+        isTrajectoryArmed = true;
+        isDrawingTrajectory = false;
+        trajectoryTargetParticleIndex = selectedParticleIndex;
+        currentTrajectory.clear();
+        repaint();
+        return true;
+    }
+
+    const auto waveform = getFragmentWaveformBounds();
+    if (!waveform.contains(position))
+        return true;
+
+    const int sliceIndex =
+        particles[static_cast<size_t>(selectedParticleIndex)].sliceIndex;
+    std::array<int, NewProjectAudioProcessor::numSliceSides>
+        fragmentStarts{};
+    std::array<int, NewProjectAudioProcessor::numSliceSides>
+        fragmentLengths{};
+    if (!audioProcessor.getSliceRanges(
+            sliceIndex, fragmentStarts, fragmentLengths))
+        return true;
+
+    const int totalSamples = loadedAudio.getNumSamples();
+    constexpr float handleRadius = 8.0f;
+    float nearestHandleDistance =
+        std::numeric_limits<float>::max();
+    int nearestHandleSide = 0;
+    FragmentDragMode nearestHandleMode =
+        FragmentDragMode::start;
+    float nearestSelectionCentreDistance =
+        std::numeric_limits<float>::max();
+    int containingSide = -1;
+
+    for (int side = 0;
+         side < NewProjectAudioProcessor::numSliceSides;
+         ++side)
+    {
+        const auto sideIndex = static_cast<size_t>(side);
+        const float startX = waveform.getX()
+            + waveform.getWidth()
+              * static_cast<float>(fragmentStarts[sideIndex])
+              / static_cast<float>(totalSamples);
+        const float endX = waveform.getX()
+            + waveform.getWidth()
+              * static_cast<float>(
+                  fragmentStarts[sideIndex]
+                    + fragmentLengths[sideIndex])
+              / static_cast<float>(totalSamples);
+        const float startDistance =
+            std::abs(position.x - startX);
+        const float endDistance =
+            std::abs(position.x - endX);
+
+        if (startDistance < nearestHandleDistance)
+        {
+            nearestHandleDistance = startDistance;
+            nearestHandleSide = side;
+            nearestHandleMode = FragmentDragMode::start;
+        }
+        if (endDistance < nearestHandleDistance)
+        {
+            nearestHandleDistance = endDistance;
+            nearestHandleSide = side;
+            nearestHandleMode = FragmentDragMode::end;
+        }
+
+        if (position.x > startX && position.x < endX)
+        {
+            if (side == activeFragmentSide)
+            {
+                containingSide = side;
+                nearestSelectionCentreDistance = 0.0f;
+            }
+            else if (nearestSelectionCentreDistance > 0.0f)
+            {
+                const float centreDistance = std::abs(
+                    position.x - (startX + endX) * 0.5f);
+                if (centreDistance
+                    < nearestSelectionCentreDistance)
+                {
+                    containingSide = side;
+                    nearestSelectionCentreDistance =
+                        centreDistance;
+                }
+            }
+        }
+    }
+
+    if (nearestHandleDistance <= handleRadius)
+    {
+        fragmentDragSide = nearestHandleSide;
+        fragmentDragMode = nearestHandleMode;
+    }
+    else if (containingSide >= 0)
+    {
+        fragmentDragSide = containingSide;
+        fragmentDragMode = FragmentDragMode::move;
+    }
+    else
+    {
+        fragmentDragSide = nearestHandleSide;
+        fragmentDragMode = nearestHandleMode;
+    }
+
+    activeFragmentSide = fragmentDragSide;
+    fragmentDragInitialStart =
+        fragmentStarts[static_cast<size_t>(fragmentDragSide)];
+    fragmentDragInitialLength =
+        fragmentLengths[static_cast<size_t>(fragmentDragSide)];
+    fragmentDragInitialMouseX = position.x;
+    repaint();
+    return true;
+}
+
+void NewProjectAudioProcessorEditor::updateFragmentFromMouse(
+    juce::Point<float> position)
+{
+    if (fragmentDragMode == FragmentDragMode::none
+        || !juce::isPositiveAndBelow(
+            selectedParticleIndex,
+            static_cast<int>(particles.size())))
+        return;
+
+    const int totalSamples = loadedAudio.getNumSamples();
+    const auto waveform = getFragmentWaveformBounds();
+    if (totalSamples <= 0 || waveform.getWidth() <= 0.0f)
+        return;
+
+    const int deltaSamples = juce::roundToInt(
+        (position.x - fragmentDragInitialMouseX)
+        / waveform.getWidth()
+        * static_cast<float>(totalSamples));
+    const int minimumLength = juce::jmax(
+        1, juce::jmin(64, totalSamples));
+    int newStart = fragmentDragInitialStart;
+    int newLength = fragmentDragInitialLength;
+
+    if (fragmentDragMode == FragmentDragMode::start)
+    {
+        const int fixedEnd =
+            fragmentDragInitialStart + fragmentDragInitialLength;
+        const int startHandleMinimumLength =
+            juce::jmin(minimumLength, fixedEnd);
+        newStart = juce::jlimit(
+            0,
+            juce::jmax(0, fixedEnd - startHandleMinimumLength),
+            fragmentDragInitialStart + deltaSamples);
+        newLength = fixedEnd - newStart;
+    }
+    else if (fragmentDragMode == FragmentDragMode::end)
+    {
+        const int endHandleMinimumLength = juce::jmin(
+            minimumLength,
+            totalSamples - fragmentDragInitialStart);
+        const int newEnd = juce::jlimit(
+            fragmentDragInitialStart + endHandleMinimumLength,
+            totalSamples,
+            fragmentDragInitialStart
+                + fragmentDragInitialLength
+                + deltaSamples);
+        newLength = newEnd - fragmentDragInitialStart;
+    }
+    else if (fragmentDragMode == FragmentDragMode::move)
+    {
+        newStart = juce::jlimit(
+            0,
+            juce::jmax(0, totalSamples - fragmentDragInitialLength),
+            fragmentDragInitialStart + deltaSamples);
+    }
+
+    const int sliceIndex =
+        particles[static_cast<size_t>(selectedParticleIndex)].sliceIndex;
+    audioProcessor.setSliceForSide(
+        sliceIndex, fragmentDragSide, newStart, newLength);
+    repaint();
+}
+
+void NewProjectAudioProcessorEditor::mouseDown(const juce::MouseEvent& e)
+{
+    if (isAnimating && e.mods.isRightButtonDown())
+    {
+        isErasingLines = true;
+        setMouseCursor(SketchCursors::eraser());
+        eraseLinesNear(e.position);
+        repaint();
+        return;
+    }
+
+    if (attackSlider.getBounds().contains(e.getPosition()) ||
+        decaySlider.getBounds().contains(e.getPosition()) ||
+        sustainSlider.getBounds().contains(e.getPosition()) ||
+        releaseSlider.getBounds().contains(e.getPosition()) ||
+        numParticlesSlider.getBounds().contains(e.getPosition()) ||
+        pitchSlider.getBounds().contains(e.getPosition()) ||
+        humanizeSlider.getBounds().contains(e.getPosition()) ||
+        (collisionButton.isVisible() && collisionButton.getBounds().contains(e.getPosition())) ||
+        (timeStopButton.isVisible() && timeStopButton.getBounds().contains(e.getPosition())) ||
+        (clearLinesButton.isVisible() && clearLinesButton.getBounds().contains(e.getPosition())) ||
+        gearButton.getBounds().contains(e.getPosition()) ||
+        (toggleRecordingPanelButton.isVisible() && toggleRecordingPanelButton.getBounds().contains(e.getPosition())) ||
+        recordingPanel.getBounds().contains(e.getPosition()))
+        return;
+
+    if (!isAnimating) return;
+    auto pos = e.getPosition().toFloat();
+
+    if (isTrajectoryArmed
+        && e.mods.isLeftButtonDown()
+        && !getFragmentEditorBounds().contains(pos))
+    {
+        if (!juce::isPositiveAndBelow(
+                trajectoryTargetParticleIndex,
+                static_cast<int>(particles.size())))
+        {
+            isTrajectoryArmed = false;
+            trajectoryTargetParticleIndex = -1;
+            return;
+        }
+
+        const auto& particle = particles[
+            static_cast<size_t>(trajectoryTargetParticleIndex)];
+        const float radius = particle.size * 0.5f;
+        pos.x = juce::jlimit(
+            8.0f + radius,
+            getWidth() - 8.0f - radius,
+            pos.x);
+        pos.y = juce::jlimit(
+            8.0f + radius,
+            getHeight() - 8.0f - radius,
+            pos.y);
+        currentTrajectory.clear();
+        currentTrajectory.push_back(pos);
+        isDrawingTrajectory = true;
+        repaint();
+        return;
+    }
+
+    if (e.mods.isLeftButtonDown() && beginFragmentDrag(pos))
+        return;
+
+    for (int i = (int)particles.size() - 1; i >= 0; --i) {
+        auto& p = particles[i];
+        if (pos.x >= p.x && pos.x <= p.x + p.size && pos.y >= p.y && pos.y <= p.y + p.size) {
+            if (e.mods.isMiddleButtonDown())
+            {
+                p.isReversed = !p.isReversed;
+                audioProcessor.setSliceReversed(
+                    p.sliceIndex, p.isReversed);
+                syncParticlesToProcessor();
+                repaint();
+                return;
+            }
+
+            if (e.mods.isLeftButtonDown())
+            {
+                selectParticle(i);
+                draggedParticleIndex = i;
+                lastMousePos = pos;
+                p.isThrown = false;
+            }
+            return;
+        }
+    }
+
+    if (e.mods.isMiddleButtonDown())
+        return;
+
+    selectParticle(-1);
+    currentStroke.type = currentWallType;
+    currentStroke.points.clear();
+    currentStroke.points.push_back(pos);
+    isDrawing = true;
+}
+
+void NewProjectAudioProcessorEditor::mouseDrag(const juce::MouseEvent& e)
+{
+    if (isErasingLines || e.mods.isRightButtonDown())
+    {
+        isErasingLines = true;
+        setMouseCursor(SketchCursors::eraser());
+        eraseLinesNear(e.position);
+        repaint();
+        return;
+    }
+
+    if (isDrawingTrajectory)
+    {
+        if (!juce::isPositiveAndBelow(
+                trajectoryTargetParticleIndex,
+                static_cast<int>(particles.size())))
+            return;
+
+        auto pos = e.getPosition().toFloat();
+        const auto& particle = particles[
+            static_cast<size_t>(trajectoryTargetParticleIndex)];
+        const float radius = particle.size * 0.5f;
+        pos.x = juce::jlimit(
+            8.0f + radius,
+            getWidth() - 8.0f - radius,
+            pos.x);
+        pos.y = juce::jlimit(
+            8.0f + radius,
+            getHeight() - 8.0f - radius,
+            pos.y);
+        if (currentTrajectory.empty()
+            || currentTrajectory.back().getDistanceFrom(pos) > 6.0f)
+        {
+            currentTrajectory.push_back(pos);
+            repaint();
+        }
+        return;
+    }
+
+    if (fragmentDragMode != FragmentDragMode::none)
+    {
+        updateFragmentFromMouse(e.position);
+        return;
+    }
+
+    if (draggedParticleIndex >= 0 && draggedParticleIndex < particles.size()) {
+        auto pos = e.getPosition().toFloat(); auto& p = particles[draggedParticleIndex];
+        const auto dragDelta = pos - lastMousePos;
+        for (auto& trajectoryPoint : p.trajectory)
+            trajectoryPoint += dragDelta;
+        p.vx = juce::jlimit(-25.0f, 25.0f, pos.x - lastMousePos.x); p.vy = juce::jlimit(-25.0f, 25.0f, pos.y - lastMousePos.y);
+        p.x = pos.x - p.size / 2.0f; p.y = pos.y - p.size / 2.0f; lastMousePos = pos;
+        bool hitWall = false; int hitType = 0; float wallMargin = 6.0f;
+
+        if (p.x <= wallMargin) { p.x = wallMargin; hitWall = true; hitType = 0; }
+        else if (p.x + p.size >= getWidth() - wallMargin) { p.x = getWidth() - wallMargin - p.size; hitWall = true; hitType = 2; }
+        if (p.y <= wallMargin) { p.y = wallMargin; hitWall = true; hitType = 1; }
+        else if (p.y + p.size >= getHeight() - wallMargin) { p.y = getHeight() - wallMargin - p.size; hitWall = true; hitType = 3; }
+
+        if (hitWall) {
+            auto now = juce::Time::currentTimeMillis();
+            if (now - p.lastHitTime > 150) { audioProcessor.playSlice(p.sliceIndex, hitType); p.lastHitTime = now; }
+        }
+    }
+    else if (isDrawing) {
+        auto pos = e.getPosition().toFloat();
+        if (currentStroke.points.empty()
+            || currentStroke.points.back().getDistanceFrom(pos) > 10.0f)
+            currentStroke.points.push_back(pos);
+    }
+}
+
+void NewProjectAudioProcessorEditor::mouseUp(const juce::MouseEvent& e)
+{
+    if (isErasingLines)
+    {
+        isErasingLines = false;
+        setMouseCursor(juce::MouseCursor::NormalCursor);
+        syncStrokesToProcessor();
+        syncParticlesToProcessor();
+        return;
+    }
+
+    if (isDrawingTrajectory)
+    {
+        if (juce::isPositiveAndBelow(
+                trajectoryTargetParticleIndex,
+                static_cast<int>(particles.size()))
+            && currentTrajectory.size() > 1)
+        {
+            auto& particle = particles[
+                static_cast<size_t>(trajectoryTargetParticleIndex)];
+            particle.trajectory = currentTrajectory;
+            particle.trajectoryDistance = 0.0f;
+            particle.trajectoryForward = true;
+            const auto centre = particle.trajectory.front();
+            particle.x = centre.x - particle.size * 0.5f;
+            particle.y = centre.y - particle.size * 0.5f;
+            if (std::sqrt(
+                    particle.vx * particle.vx
+                    + particle.vy * particle.vy) < 0.6f)
+            {
+                particle.vx = 2.5f;
+                particle.vy = 0.0f;
+            }
+        }
+
+        currentTrajectory.clear();
+        isDrawingTrajectory = false;
+        isTrajectoryArmed = false;
+        trajectoryTargetParticleIndex = -1;
+        syncParticlesToProcessor();
+        repaint();
+        return;
+    }
+
+    if (fragmentDragMode != FragmentDragMode::none)
+    {
+        updateFragmentFromMouse(e.position);
+        fragmentDragMode = FragmentDragMode::none;
+        return;
+    }
+
+    if (draggedParticleIndex >= 0 && draggedParticleIndex < particles.size()) {
+        particles[draggedParticleIndex].isThrown = !isTimeStopped;
+        draggedParticleIndex = -1;
+    }
+    else if (isDrawing) {
+        if (currentStroke.points.size() > 1)
+            strokes.push_back(currentStroke);
+        currentStroke.points.clear();
+        currentStroke.type = currentWallType;
+        isDrawing = false;
+        syncStrokesToProcessor();
+    }
+
+    syncParticlesToProcessor();
+}
+
+void NewProjectAudioProcessorEditor::eraseLinesNear(
+    juce::Point<float> position)
+{
+    const float radiusSquared = eraserRadius * eraserRadius;
+    const auto isNearSegment =
+        [position, radiusSquared](juce::Point<float> start,
+                                  juce::Point<float> end)
+        {
+            const auto segment = end - start;
+            const float lengthSquared =
+                segment.getDistanceSquaredFromOrigin();
+
+            if (lengthSquared < 0.0001f)
+                return position.getDistanceSquaredFrom(start)
+                       <= radiusSquared;
+
+            float amount =
+                (position - start).getDotProduct(segment)
+                / lengthSquared;
+            amount = juce::jlimit(0.0f, 1.0f, amount);
+
+            return position.getDistanceSquaredFrom(
+                       start + segment * amount)
+                   <= radiusSquared;
+        };
+
+    std::vector<WallStroke> remainingStrokes;
+
+    for (const auto& stroke : strokes)
+    {
+        WallStroke fragment;
+        fragment.type = stroke.type;
+
+        for (size_t pointIndex = 0;
+             pointIndex + 1 < stroke.points.size();
+             ++pointIndex)
+        {
+            const auto start = stroke.points[pointIndex];
+            const auto end = stroke.points[pointIndex + 1];
+
+            if (isNearSegment(start, end))
+            {
+                if (fragment.points.size() > 1)
+                    remainingStrokes.push_back(std::move(fragment));
+                fragment = {};
+                fragment.type = stroke.type;
+                continue;
+            }
+
+            if (fragment.points.empty())
+                fragment.points.push_back(start);
+            fragment.points.push_back(end);
+        }
+
+        if (fragment.points.size() > 1)
+            remainingStrokes.push_back(std::move(fragment));
+    }
+
+    strokes = std::move(remainingStrokes);
+
+    for (auto& particle : particles)
+    {
+        if (particle.trajectory.size() < 2)
+            continue;
+
+        bool erasedTrajectorySegment = false;
+        std::vector<std::vector<juce::Point<float>>> fragments;
+        std::vector<juce::Point<float>> fragment;
+
+        for (size_t pointIndex = 0;
+             pointIndex + 1 < particle.trajectory.size();
+             ++pointIndex)
+        {
+            const auto start = particle.trajectory[pointIndex];
+            const auto end = particle.trajectory[pointIndex + 1];
+
+            if (isNearSegment(start, end))
+            {
+                erasedTrajectorySegment = true;
+                if (fragment.size() > 1)
+                    fragments.push_back(std::move(fragment));
+                fragment.clear();
+                continue;
+            }
+
+            if (fragment.empty())
+                fragment.push_back(start);
+            fragment.push_back(end);
+        }
+
+        if (!erasedTrajectorySegment)
+            continue;
+
+        if (fragment.size() > 1)
+            fragments.push_back(std::move(fragment));
+
+        if (fragments.empty())
+        {
+            particle.trajectory.clear();
+            particle.trajectoryDistance = 0.0f;
+            particle.trajectoryForward = true;
+            continue;
+        }
+
+        const auto longestFragment = std::max_element(
+            fragments.begin(),
+            fragments.end(),
+            [](const auto& first, const auto& second)
+            {
+                return getTrajectoryLength(first)
+                       < getTrajectoryLength(second);
+            });
+
+        const juce::Point<float> particleCentre(
+            particle.x + particle.size * 0.5f,
+            particle.y + particle.size * 0.5f);
+        particle.trajectory = std::move(*longestFragment);
+        particle.trajectoryDistance = getNearestTrajectoryDistance(
+            particle.trajectory,
+            particleCentre);
+    }
+}
+
+void NewProjectAudioProcessorEditor::mouseWheelMove(
+    const juce::MouseEvent& event,
+    const juce::MouseWheelDetails& wheel)
+{
+    if (!isAnimating || std::abs(wheel.deltaY) < 0.0001f)
+    {
+        juce::AudioProcessorEditor::mouseWheelMove(event, wheel);
+        return;
+    }
+
+    if (event.mods.isCtrlDown())
+    {
+        const int brushCount = static_cast<int>(WallType::count);
+        const int direction = wheel.deltaY > 0.0f ? 1 : -1;
+        const int currentIndex = static_cast<int>(currentWallType);
+        const int nextIndex =
+            (currentIndex + direction + brushCount) % brushCount;
+        currentWallType = static_cast<WallType>(nextIndex);
+        currentStroke.type = currentWallType;
+        audioProcessor.uiWallBrush = nextIndex;
         wallBrushHintPosition = event.position;
         wallBrushHintUntil =
             juce::Time::currentTimeMillis() + 1100;
@@ -1013,4 +2198,3 @@ void NewProjectAudioProcessorEditor::timerCallback()
     syncParticlesToProcessor();
     repaint();
 }
-

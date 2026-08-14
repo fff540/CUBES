@@ -78,4 +78,3 @@ void drawBranding(juce::Graphics& graphics, int frameCount)
                       juce::Justification::centredLeft, false);
 }
 }
-

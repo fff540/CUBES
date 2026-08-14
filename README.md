@@ -6,4 +6,3 @@ GitHub Actions produces two ZIP archives containing AU and VST3 plug-ins:
 - `CUBES-macOS-11+-universal-AU-VST3.zip` for Intel and Apple Silicon Macs running macOS 11 or newer.
 
 The artifacts are ad-hoc signed for local installation and are not Developer ID signed or notarized.
-
