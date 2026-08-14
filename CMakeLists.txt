@@ -1,6 +1,3 @@
-Exit code: 0
-Wall time: 4.8 seconds
-Output:
 cmake_minimum_required(VERSION 3.22)
 
 project(CUBES VERSION 1.0.0 LANGUAGES C CXX)

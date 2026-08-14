@@ -1,6 +1,3 @@
-Exit code: 0
-Wall time: 0.7 seconds
-Output:
 # CUBES macOS builds
 
 GitHub Actions produces two ZIP archives containing AU and VST3 plug-ins:

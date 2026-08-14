@@ -1,6 +1,3 @@
-Exit code: 0
-Wall time: 5.2 seconds
-Output:
 #include "Branding.h"
 
 #include <array>

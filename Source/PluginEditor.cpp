@@ -1,7 +1,3 @@
-Exit code: 0
-Wall time: 5.4 seconds
-Total output lines: 2201
-Output:
 /*
   ==============================================================================
     This file contains the basic framework code for a JUCE plugin editor.

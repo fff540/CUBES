@@ -1,6 +1,3 @@
-Exit code: 0
-Wall time: 5.3 seconds
-Output:
 #pragma once
 
 #include <JuceHeader.h>
