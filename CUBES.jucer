@@ -1,0 +1,82 @@
+Exit code: 0
+Wall time: 5.3 seconds
+Output:
+<?xml version="1.0" encoding="UTF-8"?>
+
+<JUCERPROJECT id="RAEjnC" name="Cubes" projectType="audioplug" useAppConfig="0"
+              addUsingNamespaceToJuceHeader="0" jucerFormatVersion="1" pluginCharacteristicsValue="pluginIsSynth,pluginProducesMidiOut,pluginWantsMidiIn"
+              pluginName="Cubes" pluginDesc="Cubes" pluginFormats="buildAU,buildStandalone,buildVST3">
+  <MAINGROUP id="pCDeii" name="Cubes">
+    <GROUP id="{18F8B68D-AAC6-2010-F0BC-89DA6F2FE58F}" name="Source">
+      <FILE id="w4Zgrp" name="PluginProcessor.cpp" compile="1" resource="0"
+            file="Source/PluginProcessor.cpp"/>
+      <FILE id="nsGtXJ" name="PluginProcessor.h" compile="0" resource="0"
+            file="Source/PluginProcessor.h"/>
+      <FILE id="ylJLYG" name="PluginEditor.cpp" compile="1" resource="0"
+            file="Source/PluginEditor.cpp"/>
+      <FILE id="u8IeuR" name="PluginEditor.h" compile="0" resource="0" file="Source/PluginEditor.h"/>
+      <FILE id="brndCpp1" name="Branding.cpp" compile="1" resource="0" file="Source/Branding.cpp"/>
+      <FILE id="brndHdr1" name="Branding.h" compile="0" resource="0" file="Source/Branding.h"/>
+      <FILE id="ctrlCpp1" name="SketchyControls.cpp" compile="1" resource="0"
+            file="Source/SketchyControls.cpp"/>
+      <FILE id="ctrlHdr1" name="SketchyControls.h" compile="0" resource="0"
+            file="Source/SketchyControls.h"/>
+      <FILE id="recpCpp1" name="RecordingPanel.cpp" compile="1" resource="0"
+            file="Source/RecordingPanel.cpp"/>
+      <FILE id="recpHdr1" name="RecordingPanel.h" compile="0" resource="0"
+            file="Source/RecordingPanel.h"/>
+      <FILE id="ptchCpp1" name="PitchResampler.cpp" compile="1" resource="0"
+            file="Source/PitchResampler.cpp"/>
+      <FILE id="ptchHdr1" name="PitchResampler.h" compile="0" resource="0"
+            file="Source/PitchResampler.h"/>
+      <FILE id="sprsCpp1" name="SpectralResampler.cpp" compile="1" resource="0"
+            file="Source/SpectralResampler.cpp"/>
+      <FILE id="sprsHdr1" name="SpectralResampler.h" compile="0" resource="0"
+            file="Source/SpectralResampler.h"/>
+    </GROUP>
+  </MAINGROUP>
+  <MODULES>
+    <MODULE id="juce_audio_basics" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_audio_devices" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_audio_formats" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_audio_plugin_client" showAllCode="1" useLocalCopy="0"
+            useGlobalPath="1"/>
+    <MODULE id="juce_audio_processors" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_audio_processors_headless" showAllCode="1" useLocalCopy="0"
+            useGlobalPath="1"/>
+    <MODULE id="juce_audio_utils" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_core" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_data_structures" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_dsp" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_events" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_graphics" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_gui_basics" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_gui_extra" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+  </MODULES>
+  <JUCEOPTIONS JUCE_STRICT_REFCOUNTEDPOINTER="1" JUCE_VST3_CAN_REPLACE_VST2="0"/>
+  <EXPORTFORMATS>
+    <VS2026 targetFolder="Builds/VisualStudio2026">
+      <CONFIGURATIONS>
+        <CONFIGURATION isDebug="1" name="Debug" targetName="Cubes"/>
+        <CONFIGURATION isDebug="0" name="Release" targetName="Cubes" useRuntimeLibDLL="0"/>
+      </CONFIGURATIONS>
+      <MODULEPATHS>
+        <MODULEPATH id="juce_audio_basics" path="../../../Juce/modules"/>
+        <MODULEPATH id="juce_audio_devices" path="../../../Juce/modules"/>
+        <MODULEPATH id="juce_audio_formats" path="../../../Juce/modules"/>
+        <MODULEPATH id="juce_audio_plugin_client" path="../../../Juce/modules"/>
+        <MODULEPATH id="juce_audio_processors" path="../../../Juce/modules"/>
+        <MODULEPATH id="juce_audio_processors_headless" path="../../../Juce/modules"/>
+        <MODULEPATH id="juce_audio_utils" path="../../../Juce/modules"/>
+        <MODULEPATH id="juce_core" path="../../../Juce/modules"/>
+        <MODULEPATH id="juce_data_structures" path="../../../Juce/modules"/>
+        <MODULEPATH id="juce_dsp" path="../../../Juce/modules"/>
+        <MODULEPATH id="juce_events" path="../../../Juce/modules"/>
+        <MODULEPATH id="juce_graphics" path="../../../Juce/modules"/>
+        <MODULEPATH id="juce_gui_basics" path="../../../Juce/modules"/>
+        <MODULEPATH id="juce_gui_extra" path="../../../Juce/modules"/>
+      </MODULEPATHS>
+    </VS2026>
+  </EXPORTFORMATS>
+</JUCERPROJECT>
+

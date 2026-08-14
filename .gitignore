@@ -1,0 +1,11 @@
+Exit code: 0
+Wall time: 5.4 seconds
+Output:
+/build*/
+/Builds/
+/JuceLibraryCode/
+.DS_Store
+*.vst3
+*.component
+*.zip
+

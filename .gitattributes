@@ -1,0 +1,8 @@
+Exit code: 0
+Wall time: 5.4 seconds
+Output:
+* text=auto
+*.yml text eol=lf
+*.cpp text eol=lf
+*.h text eol=lf
+

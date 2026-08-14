@@ -1,0 +1,88 @@
+Exit code: 0
+Wall time: 5.1 seconds
+Output:
+name: Build macOS AU and VST3
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Legacy Intel and modern universal plug-ins
+    runs-on: macos-15-intel
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Build for macOS 10.14 Intel
+        run: |
+          cmake -S . -B build-legacy -G Xcode \
+            -DCMAKE_OSX_ARCHITECTURES=x86_64 \
+            -DCMAKE_OSX_DEPLOYMENT_TARGET=10.14
+          cmake --build build-legacy --config Release \
+            --target CUBES_AU CUBES_VST3 --parallel 3
+
+      - name: Package legacy Intel plug-ins
+        shell: bash
+        run: |
+          set -euo pipefail
+          au="build-legacy/CUBES_artefacts/Release/AU/Cubes.component"
+          vst3="build-legacy/CUBES_artefacts/Release/VST3/Cubes.vst3"
+          lipo -archs "$au/Contents/MacOS/Cubes" | grep -qw x86_64
+          lipo -archs "$vst3/Contents/MacOS/Cubes" | grep -qw x86_64
+          codesign --force --deep --sign - --timestamp=none "$au" "$vst3"
+          package="$RUNNER_TEMP/CUBES-macOS-10.14-Intel-AU-VST3"
+          mkdir -p "$package"
+          ditto "$au" "$package/Cubes.component"
+          ditto "$vst3" "$package/Cubes.vst3"
+          ditto -c -k --sequesterRsrc --keepParent "$package" \
+            "$RUNNER_TEMP/CUBES-macOS-10.14-Intel-AU-VST3.zip"
+
+      - name: Build modern universal plug-ins
+        run: |
+          cmake -S . -B build-modern -G Xcode \
+            -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64" \
+            -DCMAKE_OSX_DEPLOYMENT_TARGET=11.0
+          cmake --build build-modern --config Release \
+            --target CUBES_AU CUBES_VST3 --parallel 3
+
+      - name: Package modern universal plug-ins
+        shell: bash
+        run: |
+          set -euo pipefail
+          au="build-modern/CUBES_artefacts/Release/AU/Cubes.component"
+          vst3="build-modern/CUBES_artefacts/Release/VST3/Cubes.vst3"
+          for binary in "$au/Contents/MacOS/Cubes" "$vst3/Contents/MacOS/Cubes"; do
+            architectures="$(lipo -archs "$binary")"
+            [[ "$architectures" == *arm64* && "$architectures" == *x86_64* ]]
+          done
+          codesign --force --deep --sign - --timestamp=none "$au" "$vst3"
+          package="$RUNNER_TEMP/CUBES-macOS-11+-universal-AU-VST3"
+          mkdir -p "$package"
+          ditto "$au" "$package/Cubes.component"
+          ditto "$vst3" "$package/Cubes.vst3"
+          ditto -c -k --sequesterRsrc --keepParent "$package" \
+            "$RUNNER_TEMP/CUBES-macOS-11+-universal-AU-VST3.zip"
+
+      - name: Upload legacy AU and VST3
+        uses: actions/upload-artifact@v7
+        with:
+          name: CUBES-macOS-10.14-Intel-AU-VST3.zip
+          path: ${{ runner.temp }}/CUBES-macOS-10.14-Intel-AU-VST3.zip
+          archive: false
+          retention-days: 30
+
+      - name: Upload modern universal AU and VST3
+        uses: actions/upload-artifact@v7
+        with:
+          name: CUBES-macOS-11+-universal-AU-VST3.zip
+          path: ${{ runner.temp }}/CUBES-macOS-11+-universal-AU-VST3.zip
+          archive: false
+          retention-days: 30
+
